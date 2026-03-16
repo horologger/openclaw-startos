@@ -13,7 +13,10 @@ export const initializeService = sdk.setupOnInit(async (effects, kind) => {
 
   await startCliConfigYaml.merge(effects, { host: hostUrl })
 
-  // Always update workspace bootstrap files on install and upgrade
+  // Seed workspace bootstrap files — only copy if they don't already exist.
+  // On upgrades this preserves the agent's customized IDENTITY, accumulated
+  // MEMORY, and any user edits to SOUL or HEARTBEAT.
+  // To reset a file to its default, delete it and reinstall/restart the service.
   await mkdir(sdk.volumes.main.subpath('.openclaw/workspace/memory'), {
     recursive: true,
   })
@@ -23,25 +26,41 @@ export const initializeService = sdk.setupOnInit(async (effects, kind) => {
     mainMounts(),
     'copy-soul',
     async (subc) => {
-      await subc.execFail(
-        [
-          'cp',
-          '/opt/workspace/SOUL.md',
-          '/opt/workspace/IDENTITY.md',
-          '/opt/workspace/HEARTBEAT.md',
-          '/data/.openclaw/workspace/',
-        ],
-        { user: 'root' },
-      )
-      // Only seed MEMORY.md if it doesn't already exist, to preserve accumulated memories
-      await subc.exec(
+      const seedFiles = [
+        'SOUL.md',
+        'IDENTITY.md',
+        'HEARTBEAT.md',
+        'MEMORY.md',
+      ]
+
+      // Detect which files already exist before seeding
+      const existCheck = await subc.exec(
         [
           'sh',
           '-c',
-          'test -f /data/.openclaw/workspace/MEMORY.md || cp /opt/workspace/MEMORY.md /data/.openclaw/workspace/MEMORY.md',
+          seedFiles
+            .map((f) => `test -f /data/.openclaw/workspace/${f} && echo ${f}`)
+            .join('; '),
         ],
         { user: 'root' },
       )
+      const preserved = String(existCheck.stdout).trim().split('\n').filter(Boolean)
+
+      // Copy only missing files
+      const conditionalCopies = seedFiles
+        .map(
+          (f) =>
+            `test -f /data/.openclaw/workspace/${f} || cp /opt/workspace/${f} /data/.openclaw/workspace/${f}`,
+        )
+        .join('; ')
+      await subc.execFail(['sh', '-c', conditionalCopies], { user: 'root' })
+
+      if (preserved.length > 0) {
+        console.info(
+          `[workspace] Existing files preserved during upgrade: ${preserved.join(', ')}. ` +
+            'To restore defaults, delete the file(s) from .openclaw/workspace/ and reinstall.',
+        )
+      }
     },
   )
 

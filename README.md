@@ -48,11 +48,17 @@ The container includes:
 
 On installation:
 1. Creates directory structure (`.openclaw/agents`, `.openclaw/credentials`, `.openclaw/workspace`)
-2. Copies workspace bootstrap files (SOUL.md, IDENTITY.md, HEARTBEAT.md, MEMORY.md)
+2. Seeds workspace bootstrap files (SOUL.md, IDENTITY.md, HEARTBEAT.md, MEMORY.md) — see note below
 3. Generates random gateway authentication token
 4. Configures start-cli with StartOS server IP
 5. Creates task to "Login to StartOS" for start-cli authentication
 6. Creates task to "Configure API Credentials" for LLM provider setup
+
+### Workspace File Preservation
+
+Workspace bootstrap files (SOUL.md, IDENTITY.md, HEARTBEAT.md, MEMORY.md) are **only copied on first install**. On upgrades, existing files are **never overwritten** — this preserves your agent's identity, accumulated memories, and any customizations you have made to the system prompt or heartbeat instructions.
+
+**To restore a file to its default:** delete the file from `.openclaw/workspace/` and reinstall or restart the service. The missing file will be re-seeded from the built-in template.
 
 ## Configuration Management
 
