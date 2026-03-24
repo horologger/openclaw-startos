@@ -37,6 +37,28 @@ export const main = sdk.setupMain(async ({ effects }) => {
       },
       requires: [],
     })
+    .addOneshot('ssh-perms', {
+      subcontainer: openclawSub,
+      exec: {
+        command: [
+          'sh',
+          '-c',
+          'mkdir -p /data/ssh_config.d && chown root:root /data/ssh_config.d && chmod 700 /data/ssh_config.d && for f in /data/ssh_config.d/*.conf; do [ -f "$f" ] && chown root:root "$f" && chmod 600 "$f"; done',
+        ],
+      },
+      requires: ['chown'],
+    })
+    .addOneshot('restore-workspace', {
+      subcontainer: openclawSub,
+      exec: {
+        command: [
+          'sh',
+          '-c',
+          'cd /data && git checkout -- .openclaw/workspace/',
+        ],
+      },
+      requires: ['ssh-perms'],
+    })
     .addDaemon('primary', {
       subcontainer: openclawSub,
       exec: {
@@ -68,7 +90,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
           ),
         gracePeriod: 40_000,
       },
-      requires: ['chown'],
+      requires: ['chown', 'ssh-perms', 'restore-workspace'],
     })
     .addOneshot('check-login', {
       subcontainer: openclawSub,

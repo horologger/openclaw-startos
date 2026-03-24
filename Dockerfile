@@ -25,6 +25,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libreoffice-common \
     && rm -rf /var/lib/apt/lists/*
 
+RUN sed -i 's|Include /etc/ssh/ssh_config.d/\*.conf|Include /data/ssh_config.d/*.conf|' /etc/ssh/ssh_config
+
 # Install GitHub CLI (direct binary)
 RUN ARCH="$(dpkg --print-architecture)" && \
     curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${ARCH}.tar.gz" \
@@ -57,6 +59,7 @@ ENV HOME=/data
 ENV OPENCLAW_STATE_DIR=/data/.openclaw
 # Include openclaw binary paths - both npm global and where openclaw may install its native binary
 ENV PATH="/opt/openclaw-home/.openclaw/bin:/usr/local/lib/node_modules/openclaw/bin:/usr/local/bin:$PATH"
+
 
 WORKDIR /data
 
