@@ -2,7 +2,7 @@ FROM node:24-bookworm-slim
 
 ARG STARTOS_VERSION
 ARG GH_VERSION=2.87.3
-ARG OPENCLAW_VERSION=2026.4.15
+ARG OPENCLAW_VERSION=2026.4.22
 
 # Install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libx11-6 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 \
     libgbm1 libpango-1.0-0 libcairo2 libasound2 \
     libreoffice-common \
+    build-essential python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN sed -i 's|Include /etc/ssh/ssh_config.d/\*.conf|Include /data/ssh_config.d/*.conf|' /etc/ssh/ssh_config
