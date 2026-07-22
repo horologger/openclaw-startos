@@ -37,6 +37,10 @@ const dict = {
   'Select your primary AI model and provider': 28,
   'Fallback LLM (Optional)': 29,
   'Select a fallback AI model used when the primary is unavailable (rate limited, auth failure, etc.)': 30,
+  'Maple Proxy': 73,
+  'Select the Maple Proxy model to use': 74,
+  'How to authenticate with Maple Proxy': 75,
+  'Your Maple API key from trymaple.ai': 76,
 
   // actions/loginToOs.ts
   'StartOS Master Password': 36,

@@ -83,6 +83,21 @@ const openaiAuthVariants = Variants.of({
   },
 })
 
+const mapleProxyAuthVariants = Variants.of({
+  'api-key': {
+    name: i18n('API Key'),
+    spec: InputSpec.of({
+      apiKey: Value.text({
+        name: i18n('API Key'),
+        description: i18n('Your Maple API key from trymaple.ai'),
+        required: true,
+        default: null,
+        masked: true,
+      }),
+    }),
+  },
+})
+
 // --- Model lists ---
 
 const anthropicModels = {
@@ -99,6 +114,13 @@ const openaiModels = {
   o3: 'o3',
   'o3-mini': 'o3 Mini',
 }
+
+const mapleProxyModels = {
+  'gpt-oss-120b': 'GPT OSS 120B',
+}
+
+const MAPLE_PROXY_PROVIDER = 'maple-proxy'
+const MAPLE_PROXY_BASE_URL = 'http://maple-proxy.startos:8080/v1'
 
 // --- Provider specs (model selector + auth) ---
 
@@ -132,6 +154,21 @@ const openaiProviderSpec = InputSpec.of({
   }),
 })
 
+const mapleProxyProviderSpec = InputSpec.of({
+  model: Value.select({
+    name: i18n('Model'),
+    description: i18n('Select the Maple Proxy model to use'),
+    default: 'gpt-oss-120b',
+    values: mapleProxyModels,
+  }),
+  auth: Value.union({
+    name: i18n('Authentication'),
+    description: i18n('How to authenticate with Maple Proxy'),
+    default: 'api-key',
+    variants: mapleProxyAuthVariants,
+  }),
+})
+
 // --- Primary LLM (required) ---
 
 const primaryVariants = Variants.of({
@@ -142,6 +179,10 @@ const primaryVariants = Variants.of({
   openai: {
     name: i18n('OpenAI'),
     spec: openaiProviderSpec,
+  },
+  'maple-proxy': {
+    name: i18n('Maple Proxy'),
+    spec: mapleProxyProviderSpec,
   },
 })
 
@@ -183,6 +224,16 @@ const inputSpec = InputSpec.of({
 
 // --- Helpers ---
 
+function profileToApiKeyPrefill(profile: AuthProfile | undefined) {
+  if (profile?.type === 'token') {
+    return {
+      selection: 'api-key' as const,
+      value: { apiKey: profile.token },
+    }
+  }
+  return { selection: 'api-key' as const, value: { apiKey: '' } }
+}
+
 function profileToAuthPrefill(profile: AuthProfile | undefined) {
   if (profile?.type === 'token') {
     return {
@@ -199,6 +250,54 @@ function profileToAuthPrefill(profile: AuthProfile | undefined) {
     }
   }
   return { selection: 'api-key' as const, value: { apiKey: '' } }
+}
+
+function authProfileForProvider(
+  profiles: Record<string, AuthProfile>,
+  provider: string,
+): AuthProfile | undefined {
+  return profiles[`${provider}:default`] as AuthProfile | undefined
+}
+
+function buildProviderPrefill(
+  provider: string,
+  model: string,
+  profile: AuthProfile | undefined,
+) {
+  if (provider === 'anthropic') {
+    return {
+      selection: 'anthropic' as const,
+      value: {
+        model: model as 'claude-opus-4-6',
+        auth: profileToAuthPrefill(profile),
+      },
+    }
+  }
+  if (provider === 'openai') {
+    return {
+      selection: 'openai' as const,
+      value: {
+        model: model as 'gpt-4o',
+        auth: profileToAuthPrefill(profile),
+      },
+    }
+  }
+  if (provider === 'maple-proxy') {
+    return {
+      selection: 'maple-proxy' as const,
+      value: {
+        model: model as 'gpt-oss-120b',
+        auth: profileToApiKeyPrefill(profile),
+      },
+    }
+  }
+  return {
+    selection: 'anthropic' as const,
+    value: {
+      model: 'claude-opus-4-6' as const,
+      auth: profileToAuthPrefill(profile),
+    },
+  }
 }
 
 function parseModelId(modelId: string): { provider: string; model: string } {
@@ -243,53 +342,37 @@ export const configureApiCredentials = sdk.Action.withInput(
       configData?.agents?.defaults?.model?.fallbacks ?? []
 
     const primary = parseModelId(primaryModelId)
-    const anthropicProfile = profiles['anthropic:default'] as
-      | AuthProfile
-      | undefined
-    const openaiProfile = profiles['openai:default'] as AuthProfile | undefined
+    const anthropicProfile = authProfileForProvider(profiles, 'anthropic')
+    const openaiProfile = authProfileForProvider(profiles, 'openai')
+    const mapleProxyProfile = authProfileForProvider(profiles, MAPLE_PROXY_PROVIDER)
 
-    // Pre-fill primary
     const primaryAuth =
-      primary.provider === 'anthropic' ? anthropicProfile : openaiProfile
-    const primaryResult =
       primary.provider === 'anthropic'
-        ? {
-            selection: 'anthropic' as const,
-            value: {
-              model: primary.model as 'claude-opus-4-6',
-              auth: profileToAuthPrefill(primaryAuth),
-            },
-          }
-        : {
-            selection: 'openai' as const,
-            value: {
-              model: primary.model as 'gpt-4o',
-              auth: profileToAuthPrefill(primaryAuth),
-            },
-          }
+        ? anthropicProfile
+        : primary.provider === 'openai'
+          ? openaiProfile
+          : mapleProxyProfile
+    const primaryResult = buildProviderPrefill(
+      primary.provider,
+      primary.model,
+      primaryAuth,
+    )
 
     // Pre-fill fallback
     let fallbackResult
     if (fallbackModelIds.length > 0) {
       const fallback = parseModelId(fallbackModelIds[0])
-      const fallbackAuth =
-        fallback.provider === 'anthropic' ? anthropicProfile : openaiProfile
-      fallbackResult =
-        fallback.provider === 'anthropic'
-          ? {
-              selection: 'anthropic' as const,
-              value: {
-                model: fallback.model as 'claude-opus-4-6',
-                auth: profileToAuthPrefill(fallbackAuth),
-              },
-            }
-          : {
-              selection: 'openai' as const,
-              value: {
-                model: fallback.model as 'gpt-4o',
-                auth: profileToAuthPrefill(fallbackAuth),
-              },
-            }
+      if (fallback.provider === 'anthropic' || fallback.provider === 'openai') {
+        const fallbackAuth =
+          fallback.provider === 'anthropic' ? anthropicProfile : openaiProfile
+        fallbackResult = buildProviderPrefill(
+          fallback.provider,
+          fallback.model,
+          fallbackAuth,
+        )
+      } else {
+        fallbackResult = { selection: 'disabled' as const, value: {} }
+      }
     } else {
       fallbackResult = { selection: 'disabled' as const, value: {} }
     }
@@ -297,7 +380,7 @@ export const configureApiCredentials = sdk.Action.withInput(
     return {
       primary: primaryResult,
       fallback: fallbackResult,
-    }
+    } as any
   },
 
   // Save handler
@@ -343,9 +426,10 @@ export const configureApiCredentials = sdk.Action.withInput(
       ...(authData?.profiles ?? {}),
     }
 
-    // Clear existing default profiles for both providers
+    // Clear existing default profiles for all providers
     delete profiles['anthropic:default']
     delete profiles['openai:default']
+    delete profiles[`${MAPLE_PROXY_PROVIDER}:default`]
 
     // Set profiles for configured providers
     if (primaryProfile) {
@@ -364,11 +448,67 @@ export const configureApiCredentials = sdk.Action.withInput(
       fallbacks.push(`${fallbackProvider}/${fallbackUnion.value.model}`)
     }
 
+    const usesMapleProxy =
+      primaryProvider === MAPLE_PROXY_PROVIDER ||
+      fallbackProvider === MAPLE_PROXY_PROVIDER
+
+    const existingConfig = await openclawJson.read((c) => c).once()
+    const providers = {
+      ...(existingConfig?.models?.providers ?? {}),
+    }
+
+    if (usesMapleProxy) {
+      const mapleApiKey =
+        primaryProvider === MAPLE_PROXY_PROVIDER &&
+        primaryProfile?.type === 'token'
+          ? primaryProfile.token
+          : fallbackProvider === MAPLE_PROXY_PROVIDER &&
+              fallbackProfile?.type === 'token'
+            ? fallbackProfile.token
+            : ''
+      providers[MAPLE_PROXY_PROVIDER] = {
+        baseUrl: MAPLE_PROXY_BASE_URL,
+        apiKey: mapleApiKey,
+        api: 'openai-completions',
+        models: [{ id: 'gpt-oss-120b', name: 'GPT OSS 120B' }],
+      }
+    } else {
+      delete providers[MAPLE_PROXY_PROVIDER]
+    }
+
+    const defaultsUpdate: {
+      model: { primary: string; fallbacks: string[] }
+      models?: Record<string, { alias: string }>
+    } = {
+      model: { primary, fallbacks },
+    }
+
+    if (usesMapleProxy) {
+      defaultsUpdate.models = {}
+      if (primaryProvider === MAPLE_PROXY_PROVIDER) {
+        defaultsUpdate.models[`${MAPLE_PROXY_PROVIDER}/${primaryModel}`] = {
+          alias: primaryModel,
+        }
+      }
+      if (
+        fallbackProvider === MAPLE_PROXY_PROVIDER &&
+        fallbackUnion.value?.model
+      ) {
+        defaultsUpdate.models[
+          `${MAPLE_PROXY_PROVIDER}/${fallbackUnion.value.model}`
+        ] = {
+          alias: fallbackUnion.value.model,
+        }
+      }
+    }
+
     await openclawJson.merge(effects, {
       agents: {
-        defaults: {
-          model: { primary, fallbacks },
-        },
+        defaults: defaultsUpdate,
+      },
+      models: {
+        mode: 'merge',
+        providers,
       },
     })
   },

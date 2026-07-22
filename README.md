@@ -94,10 +94,11 @@ Configure primary and optional fallback LLM providers.
 **Providers:**
 - Anthropic (Claude): Sonnet 4.5, Opus 4.5, Haiku 3.5
 - OpenAI: GPT-4o, GPT-4o Mini, o3, o3 Mini
+- Maple Proxy: GPT OSS 120B (requires Maple Proxy running at `http://maple-proxy.startos:8080/v1`)
 
 **Authentication methods:**
 - API Key: Standard API key from provider console
-- OAuth: Access token from Claude Pro/Max or ChatGPT Plus subscription
+- OAuth: Access token from Claude Pro/Max or ChatGPT Plus subscription (Anthropic/OpenAI only)
 
 ### Login to StartOS
 
@@ -209,6 +210,7 @@ actions:
     providers:
       - anthropic (claude-sonnet-4-5, claude-opus-4-5, claude-haiku-3-5)
       - openai (gpt-4o, gpt-4o-mini, o3, o3-mini)
+      - maple-proxy (gpt-oss-120b)
   - id: login-to-os
     name: Login to StartOS
     has_input: true

@@ -43,6 +43,30 @@ const heartbeatSchema = z.object({
 const defaultsSchema = z.object({
   model: modelSchema.catch(() => modelSchema.parse({})),
   heartbeat: heartbeatSchema.catch(() => heartbeatSchema.parse({})),
+  models: z
+    .record(z.string(), z.object({ alias: z.string().optional() }))
+    .optional()
+    .catch(undefined),
+})
+
+const modelProviderEntrySchema = z.object({
+  baseUrl: z.string(),
+  apiKey: z.string(),
+  api: z.string(),
+  models: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+    }),
+  ),
+})
+
+const modelsSchema = z.object({
+  mode: z.string().optional().catch(undefined),
+  providers: z
+    .record(z.string(), modelProviderEntrySchema)
+    .optional()
+    .catch(undefined),
 })
 
 const loadSchema = z.object({
@@ -61,6 +85,7 @@ const shape = z.object({
     })
     .optional()
     .catch(undefined),
+  models: modelsSchema.optional().catch(undefined),
   skills: skillsSchema.catch(() => skillsSchema.parse({})),
   channels: z
     .object({

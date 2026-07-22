@@ -5,9 +5,10 @@ This repo packages [OpenClaw](https://github.com/openclaw/openclaw) for StartOS.
 ## Documentation — keep it in sync
 
 - **`README.md`** — what this package is, how it differs from upstream, and how it's built (image, volumes, interfaces). For developers and AI assistants.
+- **`instructions.md`** — the user-facing instructions packed into the `.s9pk` and shown on the **Instructions** tab in StartOS, for the person running the service. Required alongside `README.md`.
 - **`CONTRIBUTING.md`** — this file.
 
-**Any code change that warrants it must update `README.md` in the same change** — a new or renamed action, an added or removed volume / port / interface / dependency, a changed default, a new limitation, any altered user-visible behavior. Don't defer: a package that ships with a stale README is not done, even if the code is perfect. Content rules live in the packaging guide: [Writing READMEs](https://docs.start9.com/packaging/writing-readmes.html).
+**Any code change that warrants it must update `README.md` and `instructions.md` in the same change** — a new or renamed action, an added or removed volume / port / interface / dependency, a changed default, a new limitation, any altered user-visible behavior. Don't defer: a package that ships with a stale README or stale instructions is not done, even if the code is perfect. Content rules live in the packaging guide: [Writing READMEs](https://docs.start9.com/packaging/writing-readmes.html) and [Writing Service Instructions](https://docs.start9.com/packaging/writing-instructions.html).
 
 ## Building
 
